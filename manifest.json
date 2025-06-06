@@ -1,0 +1,65 @@
+{
+  "manifest_version": 3,
+  "name": "Google Maps Button (EU Fix)",
+  "version": "1.0",
+  "description": "Restores the missing Google Maps tab on Google Search results for EU users affected by the Digital Markets Act.",
+  
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  
+  "action": {
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    },
+    "default_title": "Google Maps Button (EU Fix)"
+  },
+  
+  "permissions": [],
+  
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.google.com/search*",
+        "https://www.google.at/search*",
+        "https://www.google.be/search*",
+        "https://www.google.bg/search*",
+        "https://www.google.hr/search*",
+        "https://www.google.cz/search*",
+        "https://www.google.dk/search*",
+        "https://www.google.ee/search*",
+        "https://www.google.fi/search*",
+        "https://www.google.fr/search*",
+        "https://www.google.de/search*",
+        "https://www.google.gr/search*",
+        "https://www.google.hu/search*",
+        "https://www.google.ie/search*",
+        "https://www.google.it/search*",
+        "https://www.google.lv/search*",
+        "https://www.google.lt/search*",
+        "https://www.google.lu/search*",
+        "https://www.google.nl/search*",
+        "https://www.google.pl/search*",
+        "https://www.google.pt/search*",
+        "https://www.google.ro/search*",
+        "https://www.google.sk/search*",
+        "https://www.google.si/search*",
+        "https://www.google.es/search*",
+        "https://www.google.se/search*"
+      ],
+      "js": ["content-script.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "google-maps-button-eu@example.com",
+      "strict_min_version": "109.0"
+    }
+  }
+}
