@@ -24,32 +24,7 @@
   "content_scripts": [
     {
       "matches": [
-        "https://www.google.com/search*",
-        "https://www.google.at/search*",
-        "https://www.google.be/search*",
-        "https://www.google.bg/search*",
-        "https://www.google.hr/search*",
-        "https://www.google.cz/search*",
-        "https://www.google.dk/search*",
-        "https://www.google.ee/search*",
-        "https://www.google.fi/search*",
-        "https://www.google.fr/search*",
-        "https://www.google.de/search*",
-        "https://www.google.gr/search*",
-        "https://www.google.hu/search*",
-        "https://www.google.ie/search*",
-        "https://www.google.it/search*",
-        "https://www.google.lv/search*",
-        "https://www.google.lt/search*",
-        "https://www.google.lu/search*",
-        "https://www.google.nl/search*",
-        "https://www.google.pl/search*",
-        "https://www.google.pt/search*",
-        "https://www.google.ro/search*",
-        "https://www.google.sk/search*",
-        "https://www.google.si/search*",
-        "https://www.google.es/search*",
-        "https://www.google.se/search*"
+        "https://www.google.com/search*"
       ],
       "js": ["content-script.js"],
       "run_at": "document_idle"

@@ -1,101 +1,181 @@
-/* Maps-tab injector (EU-focused, language-agnostic, BFCache-safe) */
-(function insertMapsButtonFast() {
+(function insertMapsButtonFinal() {
   'use strict';
 
-  /* ────────── 1.  CSS (injected ASAP) ────────── */
-  const STYLE_TEXT = `
-    div[role="navigation"] .gmaps-button {
-      text-decoration: none !important;
-      color: #70757a !important;
-      padding: 0 12px;
+  const styleEl = document.createElement('style');
+  styleEl.textContent = `
+    .hdtb-mitem .gmaps-button {
+      display: inline-block !important;
+      white-space: nowrap !important;
+      font-family: 'Google Sans', Arial, sans-serif !important;
       font-size: 14px !important;
-      line-height: 16px !important;
-      font-family: 'Google Sans', Roboto, Arial, sans-serif !important;
       font-weight: 500 !important;
       letter-spacing: 0.25px !important;
-    }
-    div[role="navigation"] .gmaps-button:visited {
-      color: #70757a !important;
-    }
-    div[role="navigation"] .gmaps-button:hover {
-      color: #202124 !important;
+      padding: 0 12px !important;
+      padding-top: 2px !important;
+      line-height: 20px !important;
       text-decoration: none !important;
-    }`;
-
-  const styleEl = document.createElement('style');
-  styleEl.textContent = STYLE_TEXT;
+      box-sizing: border-box !important;
+      vertical-align: baseline !important;
+      margin: 0 !important;
+      height: auto !important;
+      position: relative !important;
+      top: 0 !important;
+      min-height: 48px !important;
+      display: flex !important;
+      align-items: center !important;
+    }
+  `;
   (document.head ?? document.documentElement).appendChild(styleEl);
 
-  /* ────────── 2.  Helpers ────────── */
-  const NAV_SELECTOR = 'div[role="navigation"]';
   let buttonInserted = false;
+  let mapsButton = null;
 
-  /* EU-centric label map */
   function mapsLabel() {
-    const lang = (document.documentElement.lang || navigator.language || 'en')
-                   .toLowerCase().split('-')[0];
+    const lang = (document.documentElement.lang || navigator.language || 'en').toLowerCase().split('-')[0];
     const labels = {
-      en: 'Maps',  fr: 'Plans',  de: 'Maps',  es: 'Maps',  it: 'Maps',
-      pl: 'Mapy',  pt: 'Maps',  nl: 'Maps',   sv: 'Kartor', da: 'Maps',
-      fi: 'Maps',  cs: 'Mapy',  sk: 'Mapy',   el: 'Χάρτες', hu: 'Térkép',
-      ro: 'Maps',  bg: 'Карти', hr: 'Karte',  lt: 'Žemėlapiai', 
+      en: 'Maps', fr: 'Plans', de: 'Maps', es: 'Maps', it: 'Maps',
+      pl: 'Mapy', pt: 'Maps', nl: 'Maps', sv: 'Kartor', da: 'Maps',
+      fi: 'Maps', cs: 'Mapy', sk: 'Mapy', el: 'Χάρτες', hu: 'Térkép',
+      ro: 'Maps', bg: 'Карти', hr: 'Karte', lt: 'Žemėlapiai',
       lv: 'Kartes', et: 'Kaardid', ga: 'Mapanna', sl: 'Zemljevidi'
     };
     return labels[lang] || 'Maps';
   }
 
-  function buildMapsTab() {
-    const a = document.createElement('a');
-    a.className   = 'gmaps-button';
-    a.textContent = mapsLabel();
-
-    const q = new URLSearchParams(location.search).get('q') ?? '';
-    a.href        = `https://www.google.com/maps/search/${encodeURIComponent(q)}`;
-    a.target      = '_blank';
-    a.ariaLabel   = a.title = mapsLabel();
-    return a;
+  function getCurrentQuery() {
+    return new URLSearchParams(location.search).get('q') ?? '';
   }
 
-  function insertButton(navBar) {
-    if (buttonInserted || !navBar || navBar.querySelector('.gmaps-button')) {
+  function createMapsURL(query) {
+    return `https://www.google.com/maps/search/${encodeURIComponent(query)}`;
+  }
+
+  function detectTheme() {
+    const html = document.documentElement;
+    const body = document.body;
+    return (
+      html.classList.contains('dark') ||
+      html.getAttribute('data-theme') === 'dark' ||
+      body.getAttribute('data-theme') === 'dark'
+    ) ? 'dark' : 'light';
+  }
+
+  function getDefaultColor(theme) {
+    return theme === 'dark' ? '#80868b' : '#70757a';
+  }
+
+  function getHoverColor(theme) {
+    return theme === 'dark' ? '#dedede' : '#1f1f1f';
+  }
+
+  function applyButtonColors() {
+    if (!mapsButton) return;
+    mapsButton.style.color = getDefaultColor(detectTheme());
+  }
+
+  function buildMapsTab() {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'hdtb-mitem';
+
+    const link = document.createElement('a');
+    link.className = 'gmaps-button';
+    link.href = createMapsURL(getCurrentQuery());
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.ariaLabel = link.title = mapsLabel();
+    link.textContent = mapsLabel();
+
+    link.addEventListener('mouseenter', () => {
+      link.style.color = getHoverColor(detectTheme());
+    });
+
+    link.addEventListener('mouseleave', () => {
+      link.style.color = getDefaultColor(detectTheme());
+    });
+
+    wrapper.appendChild(link);
+    mapsButton = link;
+    applyButtonColors();
+
+    return wrapper;
+  }
+
+  function insertMapsButton(navBar) {
+    if (buttonInserted || navBar.querySelector('.gmaps-button')) {
       buttonInserted = true;
-      return;
+      return true;
     }
-    const tabs = navBar.querySelectorAll('a');
-    if (!tabs.length) return;
 
     const mapsTab = buildMapsTab();
 
-    /* Language-neutral “News” tab = href containing tbm=nws */
-    const newsTab = Array.from(tabs).find(t => /[?&]tbm=nws(&|$)/.test(t.href));
+    const allTabWrapper = Array.from(navBar.querySelectorAll('a')).find(a =>
+      (a.href.includes('/search?') && !a.href.includes('tbm=')) ||
+      a.textContent.toLowerCase().includes('all')
+    )?.parentElement;
 
-    (newsTab?.parentElement ?? tabs[tabs.length - 1].parentElement)
-      .insertBefore(mapsTab, newsTab ? newsTab.nextSibling : null);
+    if (allTabWrapper) {
+      allTabWrapper.after(mapsTab);
+    } else {
+      navBar.appendChild(mapsTab);
+    }
 
     buttonInserted = true;
+    return true;
   }
 
-  function tryNow() {
-    const nav = document.querySelector(NAV_SELECTOR);
-    if (nav) insertButton(nav);
+  function attemptInsertion() {
+    const navBar = document.querySelector('div[role="navigation"]');
+    if (navBar) {
+      return insertMapsButton(navBar);
+    }
+    return false;
   }
 
-  /* ────────── 3.  Execution strategies ────────── */
-  tryNow();                                   // immediate
-  let retries = 120;                          // ≈2 s rAF loop
-  (function loop() {
-    if (!buttonInserted && retries--) {
-      tryNow();
-      requestAnimationFrame(loop);
+  if (!attemptInsertion()) {
+    let retries = 120;
+    const retryLoop = () => {
+      if (!buttonInserted && retries-- > 0) {
+        if (!attemptInsertion()) {
+          requestAnimationFrame(retryLoop);
+        }
+      }
+    };
+    requestAnimationFrame(retryLoop);
+  }
+
+  const observer = new MutationObserver(() => {
+    if (!buttonInserted && document.querySelector('div[role="navigation"]')) {
+      if (attemptInsertion()) {
+        observer.disconnect();
+      }
     }
-  })();
-  new MutationObserver((_, o) => {            // until nav appears
-    if (document.querySelector(NAV_SELECTOR)) {
-      o.disconnect(); tryNow();
-    }
-  }).observe(document.body, {childList: true, subtree: true});
-  addEventListener('pageshow', e => {         // BFCache restore
-    if (e.persisted) { buttonInserted = false; tryNow(); }
   });
+  observer.observe(document.body, { childList: true, subtree: true });
+
+  addEventListener('pageshow', e => {
+    if (e.persisted) {
+      buttonInserted = false;
+      setTimeout(() => {
+        attemptInsertion();
+        applyButtonColors();
+      }, 100);
+    }
+  });
+
+  addEventListener('popstate', () => {
+    if (mapsButton) {
+      mapsButton.href = createMapsURL(getCurrentQuery());
+    }
+  });
+
+  addEventListener('beforeunload', () => {
+    observer.disconnect();
+  });
+
+  const themeObserver = new MutationObserver(() => {
+    applyButtonColors();
+  });
+  themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'data-theme'] });
+  themeObserver.observe(document.body, { attributes: true, attributeFilter: ['data-theme'] });
 
 })();
