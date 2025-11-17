@@ -2,27 +2,26 @@
   'use strict';
 
   const styleEl = document.createElement('style');
+  styleEl.id = 'gmaps-insert-style';
   styleEl.textContent = `
-    .hdtb-mitem .gmaps-button {
-      display: inline-block !important;
+    .hdtb-mitem .gmaps-button { 
+      display: inline-flex !important;
+      align-items: center !important;
       white-space: nowrap !important;
+      text-decoration: none !important;
+      box-sizing: border-box !important;
+      padding: 0 12px !important;
+      min-height: 48px !important;
       font-family: 'Google Sans', Arial, sans-serif !important;
       font-size: 14px !important;
       font-weight: 500 !important;
-      letter-spacing: 0.25px !important;
-      padding: 0 12px !important;
-      padding-top: 2px !important;
       line-height: 20px !important;
-      text-decoration: none !important;
-      box-sizing: border-box !important;
-      vertical-align: baseline !important;
-      margin: 0 !important;
-      height: auto !important;
-      position: relative !important;
-      top: 0 !important;
-      min-height: 48px !important;
-      display: flex !important;
-      align-items: center !important;
+      vertical-align: middle !important;
+    }
+    .hdtb-mitem.gmaps-wrapper { 
+      display: inline-flex !important; 
+      align-items: center !important; 
+      vertical-align: middle !important;
     }
   `;
   (document.head ?? document.documentElement).appendChild(styleEl);
@@ -50,55 +49,107 @@
     return `https://www.google.com/maps/search/${encodeURIComponent(query)}`;
   }
 
-  function detectTheme() {
-    const html = document.documentElement;
-    const body = document.body;
-    return (
-      html.classList.contains('dark') ||
-      html.getAttribute('data-theme') === 'dark' ||
-      body.getAttribute('data-theme') === 'dark'
-    ) ? 'dark' : 'light';
+  function findNav() {
+    return document.querySelector('div[role="navigation"]') ||
+           document.querySelector('#top_nav') ||
+           document.querySelector('#search');
   }
 
-  function getDefaultColor(theme) {
-    return theme === 'dark' ? '#80868b' : '#70757a';
+  function visibleWrappers(nav) {
+    if (!nav) return [];
+    const nodes = Array.from(nav.querySelectorAll('.hdtb-mitem, a'))
+      .map(el => el.closest('.hdtb-mitem') || el.parentElement)
+      .filter(Boolean);
+
+    const result = [];
+    const seen = new Set();
+
+    for (const n of nodes) {
+      if (!seen.has(n) && n.offsetParent !== null) {
+        seen.add(n);
+        result.push(n);
+      }
+    }
+    return result;
   }
 
-  function getHoverColor(theme) {
-    return theme === 'dark' ? '#dedede' : '#1f1f1f';
+  function findTopRowWrappers(nav) {
+    const wraps = visibleWrappers(nav);
+    if (!wraps.length) return [];
+
+    const tops = wraps.map(w => Math.round(w.getBoundingClientRect().top));
+    const freq = {};
+    tops.forEach(t => freq[t] = (freq[t] || 0) + 1);
+
+    const mainTop = Number(Object.keys(freq).reduce((a, b) => freq[a] > freq[b] ? a : b));
+    return wraps.filter(w => Math.round(w.getBoundingClientRect().top) === mainTop);
   }
 
-  function applyButtonColors() {
-    if (!mapsButton) return;
-    mapsButton.style.color = getDefaultColor(detectTheme());
-  }
-
-  function buildMapsTab() {
-    const wrapper = document.createElement('div');
-    wrapper.className = 'hdtb-mitem';
-
-    const link = document.createElement('a');
-    link.className = 'gmaps-button';
-    link.href = createMapsURL(getCurrentQuery());
-    link.target = '_blank';
-    link.rel = 'noopener noreferrer';
-    link.ariaLabel = link.title = mapsLabel();
-    link.textContent = mapsLabel();
-
-    link.addEventListener('mouseenter', () => {
-      link.style.color = getHoverColor(detectTheme());
+  function buildMapsWrapper() {
+    document.querySelectorAll('.hdtb-mitem.gmaps-wrapper').forEach((el, idx) => {
+      if (idx > 0) el.remove();
     });
 
-    link.addEventListener('mouseleave', () => {
-      link.style.color = getDefaultColor(detectTheme());
-    });
+    let wrapper = document.querySelector('.hdtb-mitem.gmaps-wrapper');
+    if (!wrapper) {
+      wrapper = document.createElement('div');
+      wrapper.className = 'hdtb-mitem gmaps-wrapper';
 
-    wrapper.appendChild(link);
-    mapsButton = link;
-    applyButtonColors();
+      const a = document.createElement('a');
+      a.className = 'gmaps-button';
+      a.href = createMapsURL(getCurrentQuery());
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      a.title = a.ariaLabel = mapsLabel();
+      a.textContent = mapsLabel();
 
+      wrapper.appendChild(a);
+    } else {
+      const a = wrapper.querySelector('a.gmaps-button');
+      if (a) {
+        a.href = createMapsURL(getCurrentQuery());
+        a.title = a.ariaLabel = mapsLabel();
+      }
+    }
+
+    mapsButton = wrapper.querySelector('a.gmaps-button');
     return wrapper;
   }
+
+  function cloneInnerStructure(nav, wrapper) {
+    try {
+      const mapsA = wrapper.querySelector('a.gmaps-button');
+      if (!mapsA) return;
+
+      const ref = Array.from(nav.querySelectorAll('a'))
+        .find(a => a.querySelector('div.mXwfNd, span.R1QWuf, div[class^="mXwf"]'))
+        || nav.querySelector('a');
+
+      if (!ref) return;
+
+      let inner = ref.querySelector('div.mXwfNd, div[class^="mXwf"], div > div > span, span');
+      if (!inner) inner = ref.querySelector('span') || ref;
+
+      const clone = inner.cloneNode(true);
+      let span = clone.querySelector('span');
+      if (!span) {
+        span = document.createElement('span');
+        clone.appendChild(span);
+      }
+      span.textContent = mapsLabel();
+
+      mapsA.innerHTML = '';
+      mapsA.appendChild(clone);
+
+      mapsA.href = createMapsURL(getCurrentQuery());
+      mapsA.title = mapsLabel();
+      mapsA.ariaLabel = mapsLabel();
+      mapsA.target = '_blank';
+      mapsA.rel = 'noopener noreferrer';
+    } catch {}
+  }
+
+  const PREFERRED = ['ai mode', 'all', 'news', 'images', 'videos', 'web'];
 
   function insertMapsButton(navBar) {
     if (buttonInserted || navBar.querySelector('.gmaps-button')) {
@@ -106,76 +157,93 @@
       return true;
     }
 
-    const mapsTab = buildMapsTab();
+    const wrapper = buildMapsWrapper();
+    const topWrappers = findTopRowWrappers(navBar);
 
-    const allTabWrapper = Array.from(navBar.querySelectorAll('a')).find(a =>
-      (a.href.includes('/search?') && !a.href.includes('tbm=')) ||
-      a.textContent.toLowerCase().includes('all')
-    )?.parentElement;
-
-    if (allTabWrapper) {
-      allTabWrapper.after(mapsTab);
-    } else {
-      navBar.appendChild(mapsTab);
+    if (!topWrappers.length) {
+      navBar.appendChild(wrapper);
+      cloneInnerStructure(navBar, wrapper);
+      buttonInserted = true;
+      return true;
     }
 
+    let preferred = null;
+    for (const want of PREFERRED) {
+      for (const w of topWrappers) {
+        const a = w.querySelector('a');
+        if (!a) continue;
+        const txt = (a.textContent || '').toLowerCase().trim();
+        if (txt === want || txt.startsWith(want) || txt.includes(want)) {
+          preferred = w;
+          break;
+        }
+      }
+      if (preferred) break;
+    }
+
+    try {
+      if (preferred) {
+        const idx = topWrappers.indexOf(preferred);
+        if (idx >= 0 && idx < topWrappers.length - 1) {
+          const next = topWrappers[idx + 1];
+          next.parentElement.insertBefore(wrapper, next);
+        } else {
+          preferred.after(wrapper);
+        }
+      } else {
+        topWrappers[0].parentElement.insertBefore(wrapper, topWrappers[0]);
+      }
+    } catch {
+      try { navBar.appendChild(wrapper); } catch {}
+    }
+
+    cloneInnerStructure(navBar, wrapper);
     buttonInserted = true;
     return true;
   }
 
-  function attemptInsertion() {
-    const navBar = document.querySelector('div[role="navigation"]');
-    if (navBar) {
-      return insertMapsButton(navBar);
-    }
-    return false;
+  function attempt() {
+    const nav = document.querySelector('div[role="navigation"]');
+    return nav ? insertMapsButton(nav) : false;
   }
 
-  if (!attemptInsertion()) {
-    let retries = 120;
-    const retryLoop = () => {
+  if (!attempt()) {
+    let retries = 160;
+    const loop = () => {
       if (!buttonInserted && retries-- > 0) {
-        if (!attemptInsertion()) {
-          requestAnimationFrame(retryLoop);
-        }
+        if (!attempt()) requestAnimationFrame(loop);
       }
     };
-    requestAnimationFrame(retryLoop);
+    requestAnimationFrame(loop);
   }
 
-  const observer = new MutationObserver(() => {
+  const mo = new MutationObserver(() => {
     if (!buttonInserted && document.querySelector('div[role="navigation"]')) {
-      if (attemptInsertion()) {
-        observer.disconnect();
-      }
+      if (attempt()) mo.disconnect();
     }
   });
-  observer.observe(document.body, { childList: true, subtree: true });
+  mo.observe(document.body, { childList: true, subtree: true });
 
   addEventListener('pageshow', e => {
     if (e.persisted) {
       buttonInserted = false;
-      setTimeout(() => {
-        attemptInsertion();
-        applyButtonColors();
-      }, 100);
+      setTimeout(attempt, 120);
     }
   });
 
   addEventListener('popstate', () => {
-    if (mapsButton) {
-      mapsButton.href = createMapsURL(getCurrentQuery());
-    }
+    const a = document.querySelector('.hdtb-mitem.gmaps-wrapper a.gmaps-button');
+    if (a) a.href = createMapsURL(getCurrentQuery());
   });
 
-  addEventListener('beforeunload', () => {
-    observer.disconnect();
-  });
+  addEventListener('beforeunload', () => mo.disconnect());
 
-  const themeObserver = new MutationObserver(() => {
-    applyButtonColors();
+  const themeMo = new MutationObserver(() => {
+    const nav = findNav();
+    const wrapper = document.querySelector('.hdtb-mitem.gmaps-wrapper');
+    if (nav && wrapper) cloneInnerStructure(nav, wrapper);
   });
-  themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'data-theme'] });
-  themeObserver.observe(document.body, { attributes: true, attributeFilter: ['data-theme'] });
+  themeMo.observe(document.documentElement, { attributes: true, attributeFilter: ['class','data-theme'] });
+  themeMo.observe(document.body, { attributes: true, attributeFilter: ['data-theme'] });
 
 })();
